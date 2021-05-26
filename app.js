@@ -18,7 +18,7 @@ app.get('/product/:id', (req, res) => {
 app.use(bodyParser.json());
 
 // MySql
-const connection = mysql.createConnection({
+const connection = mysql.createPool({
   host: 'us-cdbr-east-03.cleardb.com',
   user: 'b63e1ea78cd984',
   password: 'bfc1e6b0',
@@ -28,9 +28,9 @@ const connection = mysql.createConnection({
 connection.queryPromise = (sql) => {
   return new Promise((resolve, reject) => {
     connection.query(sql, (err, result) => {
-        if(err){reject(new Error());}
-        else{resolve(result);}
-      });
+      if (err) { reject(new Error()); }
+      else { resolve(result); }
+    });
   });
 }
 
@@ -69,50 +69,43 @@ app.get('/core_products/:id', (req, res) => {
   let product;
 
   connection.queryPromise(`SELECT * FROM core_products WHERE id = ${id}`)
-  .then((result)=>{
+    .then((result) => {
       console.log(result);
       product = result[0];
       var sql = `SELECT locations.* FROM core_products INNER JOIN locations ON locations.product_code=core_products.core_number WHERE id=${id}`;
       return connection.queryPromise(sql);
-  }).then((result)=>{
+    }).then((result) => {
       console.log(result);
       product['locations'] = result;
 
       var sql = `SELECT locations.warehouse, SUM(locations.quantity) as 'total_quantity' FROM core_products INNER JOIN locations ON locations.product_code=core_products.core_number WHERE id=${id} GROUP BY locations.warehouse`;
       return connection.queryPromise(sql);
-  }).then((result)=>{
+    }).then((result) => {
       console.log(result);
       product['quantity_by_warehouse'] = result;
 
       res.json(product);
-  }).catch((err)=>{
+    }).catch((err) => {
       console.log(err);
       res.json(err);
-  });
+    });
 });
 
 app.post('/locations/update', (req, res) => {
-    const { warehouse, location, product_code, quantity } = req.body;
+  const { warehouse, location, product_code, quantity } = req.body;
 
   connection.queryPromise(`UPDATE locations SET quantity = quantity + ${quantity} WHERE warehouse = '${warehouse}' AND location = '${location}' AND product_code = '${product_code}'`)
-  .then((result)=>{
+    .then((result) => {
       res.json({
         'status': 'success'
       });
-  }).catch((err)=>{
+    }).catch((err) => {
       console.log(err);
       res.json({
         'status': 'error',
         'error': err
       });
-  });
-
-});
-
-// Check connect
-connection.connect(error => {
-  if (error) throw error;
-  console.log('Database server running!');
+    });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
