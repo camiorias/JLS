@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+
+  <title>Product</title>
+</head>
+
+<body>
+  <div class="container">
+    <div>
+      <h1>Loading...</h1>
+    </div>
+    <div class="row">
+
+      <div class="col-12 container">
+        <ul class="row details">
+        </ul>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <h3>Locations</h3>
+      <table class="table table-locations">
+        <thead>
+          <tr>
+            <th scope="col">Warehouse</th>
+            <th scope="col">Product Code</th>
+            <th scope="col">Location</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Modify Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+      </table>
+    </div>
+    <hr />
+    <div class="row">
+      <h3>Quantity by Warehouse</h3>
+      <table class="table table-warehouse">
+        <thead>
+          <tr>
+            <th scope="col">Warehouse</th>
+            <th scope="col">Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4"
+    crossorigin="anonymous"></script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script type="text/javascript">
+    $('document').ready(function () {
+
+      $.fn.serializeObject = function () {
+        var o = {};
+        var a = this.serializeArray();
+        $.each(a, function () {
+          if (o[this.name]) {
+            if (!o[this.name].push) {
+              o[this.name] = [o[this.name]];
+            }
+            o[this.name].push(this.value || '');
+          } else {
+            o[this.name] = this.value || '';
+          }
+        });
+        return o;
+      };
+
+
+      function humanize(str) {
+        return str
+          .replace(/^[\s_]+|[\s_]+$/g, '')
+          .replace(/[_\s]+/g, ' ')
+          .replace(/^[a-z]/, function (m) { return m.toUpperCase(); });
+      }
+
+      function getProducts(id) {
+        $.ajax({
+          type: 'GET',
+          url: '/core_products/' + id,
+          dataType: 'json',
+          success: function (data) {
+            $('h1').html(data.internal_title);
+
+            let details = $('.details');
+            $.each(data, function (field, value) {
+              if (!$.isArray(value)) {
+                let item = $('<li class="list-item col-4 py-2"/>')
+                value = (value !== null) ? value : 'N/A';
+                item.html('<b>' + humanize(field) + '</b>: ' + value);
+                details.append(item);
+              }
+            });
+
+            let tableBodyLocations = $('.table-locations tbody');
+            $.each(data.locations, function (index, locationData) {
+              let row = $('<tr>');
+              $.each(locationData, function (index, value) {
+                let column = $('<td>');
+                column.html(value);
+                row.append(column);
+              });
+              // Column Edit Quantity
+              let column = $('<td>');
+
+              let form = $('<form>');
+
+              let inputWarehouse = $('<input type="hidden" name="warehouse"/>');
+              inputWarehouse.val(locationData.warehouse);
+              form.append(inputWarehouse);
+
+              let inputProductCode = $('<input type="hidden" name="product_code"/>');
+              inputProductCode.val(locationData.product_code);
+              form.append(inputProductCode);
+
+              let inputLocation = $('<input type="hidden" name="location"/>');
+              inputLocation.val(locationData.location);
+              form.append(inputLocation);
+
+              let inputQuantity = $('<input type="text" name="quantity"/>');
+              inputQuantity.val(0);
+              form.append(inputQuantity);
+
+              let button = $('<input type="submit" value="Edit"/>');
+              form.append(button);
+
+              form.on('submit', function (e) {
+                e.preventDefault();  //prevent form from submitting
+                var data = form.find(":input").serializeObject();
+                editQuantity(data.warehouse, data.location, data.product_code, data.quantity);
+              });
+
+
+              column.append(form);
+              row.append(column);
+              tableBodyLocations.append(row);
+            });
+
+            let tableBodyWarehouse = $('.table-warehouse tbody');
+            $.each(data.quantity_by_warehouse, function (index, warehouse) {
+              let row = $('<tr>');
+              $.each(warehouse, function (index, value) {
+                let column = $('<td>');
+                column.html(value);
+                row.append(column);
+              });
+              tableBodyWarehouse.append(row);
+            });
+
+          },
+          error: function (data) {
+
+          },
+        });
+      }
+
+      function editQuantity(warehouse, location, product_code, quantity) {
+        $.ajax({
+          type: 'POST',
+          url: '/locations/update',
+          data: JSON.stringify({
+            'warehouse': warehouse,
+            'location': location,
+            'product_code': product_code,
+            'quantity': parseInt(quantity)
+          }),
+          contentType: 'application/json',
+          dataType: 'json',
+          success: function (data) {
+            window.location.reload();
+          },
+          error: function (data) {
+            console.log(data);
+            alert(data.error);
+          },
+        });
+      }
+
+      let fields = window.location.pathname.split('/');
+      let id = fields[fields.length - 1];
+      getProducts(id);
+    });
+  </script>
+</body>
+
+</html>
