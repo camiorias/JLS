@@ -70,18 +70,15 @@ app.get('/core_products/:id', (req, res) => {
 
   connection.queryPromise(`SELECT * FROM core_products WHERE id = ${id}`)
     .then((result) => {
-      console.log(result);
       product = result[0];
       var sql = `SELECT locations.* FROM core_products INNER JOIN locations ON locations.product_code=core_products.core_number WHERE id=${id}`;
       return connection.queryPromise(sql);
     }).then((result) => {
-      console.log(result);
       product['locations'] = result;
 
       var sql = `SELECT locations.warehouse, SUM(locations.quantity) as 'total_quantity' FROM core_products INNER JOIN locations ON locations.product_code=core_products.core_number WHERE id=${id} GROUP BY locations.warehouse`;
       return connection.queryPromise(sql);
     }).then((result) => {
-      console.log(result);
       product['quantity_by_warehouse'] = result;
 
       res.json(product);
